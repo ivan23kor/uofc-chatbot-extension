@@ -1,0 +1,9 @@
+{
+  "name": "uofc.chatbot.extension",
+  "description": "UofC ChatBot Extension MCP Bridge",
+  "path": "/home/ivan23kor/uofc-chatbot-extension/mcp-bridge.js",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://*"
+  ]
+}

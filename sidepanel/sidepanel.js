@@ -173,6 +173,7 @@ class ChatBot {
     this.isTyping = false;
     this.apiKeyModal = new APIKeyModal();
     this.initialized = false;
+    this.mcpEnabled = false;
   }
 
   async init() {
@@ -195,6 +196,8 @@ class ChatBot {
       this.setupChatEventListeners();
       this.setupMessageHandlers();
       this.loadChatHistory();
+      this.checkMCPStatus();
+      this.setupQuickActions();
       this.addWelcomeMessage();
       this.initialized = true;
     } catch (error) {
@@ -276,10 +279,93 @@ class ChatBot {
     }
   }
 
+  async checkMCPStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getMCPStatus' });
+      this.mcpEnabled = response.connected;
+      console.log('MCP Status:', this.mcpEnabled);
+      this.updateMCPStatusIndicator();
+    } catch (error) {
+      console.error('Failed to check MCP status:', error);
+      this.mcpEnabled = false;
+      this.updateMCPStatusIndicator();
+    }
+  }
+
+  updateMCPStatusIndicator() {
+    const statusDot = document.getElementById('mcpStatusDot');
+    if (statusDot) {
+      if (this.mcpEnabled) {
+        statusDot.classList.remove('inactive');
+      } else {
+        statusDot.classList.add('inactive');
+      }
+    }
+  }
+
+  setupQuickActions() {
+    const readPageBtn = document.getElementById('readPageBtn');
+    const getLinksBtn = document.getElementById('getLinksBtn');
+    const helpBtn = document.getElementById('helpBtn');
+    const helpClose = document.getElementById('helpClose');
+    const helpModal = document.getElementById('helpModal');
+
+    if (readPageBtn) {
+      readPageBtn.addEventListener('click', () => {
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+          messageInput.value = 'read this page';
+          this.handleSendMessage();
+        }
+      });
+    }
+
+    if (getLinksBtn) {
+      getLinksBtn.addEventListener('click', () => {
+        const messageInput = document.getElementById('messageInput');
+        if (messageInput) {
+          messageInput.value = 'get all links';
+          this.handleSendMessage();
+        }
+      });
+    }
+
+    if (helpBtn) {
+      helpBtn.addEventListener('click', () => {
+        if (helpModal) {
+          helpModal.style.display = 'flex';
+        }
+      });
+    }
+
+    if (helpClose) {
+      helpClose.addEventListener('click', () => {
+        if (helpModal) {
+          helpModal.style.display = 'none';
+        }
+      });
+    }
+
+    // Close help modal when clicking outside
+    if (helpModal) {
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+          helpModal.style.display = 'none';
+        }
+      });
+    }
+  }
+
   addWelcomeMessage() {
+    let welcomeText = 'Welcome to UofC ChatBot! I\'m powered by Llama 3.3 and ready to help.';
+    if (this.mcpEnabled) {
+      welcomeText += ' I can also help you interact with web pages - try commands like "read this page", "find sections about X", "scroll to heading", or "get all links".';
+    }
+    welcomeText += ' What can I assist you with today?';
+
     const welcomeMessage = {
       role: 'assistant',
-      content: 'Welcome to UofC ChatBot! I\'m powered by Llama 3.3 and ready to help. What can I assist you with today?',
+      content: welcomeText,
       timestamp: Date.now()
     };
     this.addMessage('assistant', welcomeMessage.content);
@@ -306,10 +392,18 @@ class ChatBot {
     this.showTypingIndicator();
 
     try {
-      // Send message directly to Groq API
-      const response = await this.sendToGroq(message);
-      this.hideTypingIndicator();
-      this.addMessage('assistant', response);
+      // Check if this is a web interaction command
+      const webCommand = this.parseWebCommand(message);
+      if (webCommand && this.mcpEnabled) {
+        const response = await this.handleWebCommand(webCommand);
+        this.hideTypingIndicator();
+        this.addMessage('assistant', response);
+      } else {
+        // Send message directly to Groq API
+        const response = await this.sendToGroq(message);
+        this.hideTypingIndicator();
+        this.addMessage('assistant', response);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       this.hideTypingIndicator();
@@ -377,7 +471,13 @@ class ChatBot {
 
     const content = document.createElement('div');
     content.className = 'message-content';
-    content.textContent = message.content;
+
+    // Parse and render content with interactive elements
+    if (message.content.includes('Click on any section number below')) {
+      content.innerHTML = this.parseInteractiveMessage(message.content);
+    } else {
+      content.textContent = message.content;
+    }
 
     messageElement.appendChild(avatar);
     messageElement.appendChild(content);
@@ -385,6 +485,39 @@ class ChatBot {
 
     // Scroll to bottom
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  parseInteractiveMessage(content) {
+    // Parse markdown and add interactive elements
+    let html = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/^\d+\.\s+\*\*(.*?)\*\*/g, function(match, text) {
+        const sectionNum = match.match(/^\d+/)[0];
+        return `<div class="search-result-item" data-section="${sectionNum}">
+          <strong>${sectionNum}. ${text}</strong>
+          <button class="scroll-to-btn" onclick="window.chatBot.scrollToSearchResult(${parseInt(sectionNum) - 1})">
+            📍 Scroll here
+          </button>
+        </div>`;
+      })
+      .replace(/^(\d+\.\s+)/gm, '<div class="search-result-item" data-section="$1">$1</div>');
+
+    return '<p>' + html + '</p>';
+  }
+
+  async scrollToSearchResult(index) {
+    if (!this.currentSearchResults || !this.currentSearchResults[index]) {
+      return '❌ Section not found. Please search again.';
+    }
+
+    const section = this.currentSearchResults[index];
+    try {
+      const result = await this.executeMCPAction('scrollToSection', { selector: section.selector });
+      return `✅ Scrolled to: **${section.text.substring(0, 50)}**`;
+    } catch (error) {
+      return `❌ Failed to scroll: ${error.message}`;
+    }
   }
 
   showTypingIndicator() {
@@ -423,6 +556,260 @@ class ChatBot {
   autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  }
+
+  parseWebCommand(message) {
+    const commands = [
+      {
+        pattern: /^(read|extract|scan)(\s+this)?(\s+page)?$/i,
+        action: 'extractStructuredData',
+        description: 'Extract structured data from the current page'
+      },
+      {
+        pattern: /^(find|search)(\s+for)?\s+(.+)$/i,
+        action: 'findSections',
+        description: 'Find sections containing specific text',
+        extractParam: 2
+      },
+      {
+        pattern: /^(scroll|go)\s+to\s+(.+)$/i,
+        action: 'scrollToSection',
+        description: 'Scroll to a specific section or element',
+        extractParam: 2
+      },
+      {
+        pattern: /^scroll\s+to\s+section\s+(\d+)$/i,
+        action: 'scrollToSectionByNumber',
+        description: 'Scroll to a section by number from search results',
+        extractParam: 1
+      },
+      {
+        pattern: /^(get|list|show)(\s+all)?\s+links?$/i,
+        action: 'getAllLinks',
+        description: 'Get all links on the current page'
+      },
+      {
+        pattern: /^(navigate|go)\s+to\s+(https?:\/\/.+)$/i,
+        action: 'navigate',
+        description: 'Navigate to a specific URL',
+        extractParam: 2
+      },
+      {
+        pattern: /^(click|press)\s+(.+)$/i,
+        action: 'click',
+        description: 'Click on an element',
+        extractParam: 1
+      },
+      {
+        pattern: /^(forms?|inputs?|fields?)$/i,
+        action: 'extractFormFields',
+        description: 'Extract form fields from the page'
+      }
+    ];
+
+    for (const command of commands) {
+      const match = message.match(command.pattern);
+      if (match) {
+        const result = {
+          action: command.action,
+          description: command.description
+        };
+
+        if (command.extractParam !== undefined) {
+          result.params = { query: match[command.extractParam].trim() };
+        }
+
+        return result;
+      }
+    }
+
+    return null;
+  }
+
+  async handleWebCommand(command) {
+    console.log('Executing web command:', command);
+
+    try {
+      let result;
+
+      switch (command.action) {
+        case 'extractStructuredData':
+          result = await this.executeMCPAction('extractStructuredData', {});
+          return this.formatStructuredDataResponse(result);
+
+        case 'findSections':
+          result = await this.executeMCPAction('findSections', { query: command.params.query });
+          return this.formatSectionsResponse(result, command.params.query);
+
+        case 'scrollToSection':
+          result = await this.executeMCPAction('scrollToSection', { query: command.params.query });
+          return this.formatScrollResponse(result);
+
+        case 'scrollToSectionByNumber':
+          const sectionIndex = parseInt(command.params.query) - 1;
+          return await this.scrollToSearchResult(sectionIndex);
+
+        case 'getAllLinks':
+          result = await this.executeMCPAction('getAllLinks', {});
+          return this.formatLinksResponse(result);
+
+        case 'navigate':
+          result = await this.executeMCPAction('navigate', { url: command.params.query });
+          return `Navigated to ${command.params.query}`;
+
+        case 'click':
+          result = await this.executeMCPAction('click', { selector: command.params.query });
+          return `Clicked on element: ${command.params.query}`;
+
+        case 'extractFormFields':
+          result = await this.executeMCPAction('extractFormFields', {});
+          return this.formatFormFieldsResponse(result);
+
+        default:
+          return `Unknown web command: ${command.action}`;
+      }
+    } catch (error) {
+      console.error('Web command failed:', error);
+      return `Failed to execute web command: ${error.message}`;
+    }
+  }
+
+  async executeMCPAction(action, params) {
+    if (action === 'navigate' || action === 'click') {
+      // Browser-level actions go through service worker
+      const method = action === 'navigate' ? 'browser_navigate' : 'browser_click';
+      const response = await chrome.runtime.sendMessage({
+        action: 'mcpCall',
+        data: { method, params }
+      });
+      return response.data;
+    } else {
+      // Page-level actions go through content script
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        action: 'mcpPageAction',
+        data: { action, params }
+      });
+      return response.data;
+    }
+  }
+
+  formatStructuredDataResponse(data) {
+    let response = `**Page Analysis: ${data.title}**\n\n`;
+
+    if (data.description) {
+      response += `**Description:** ${data.description}\n\n`;
+    }
+
+    if (data.headings && data.headings.length > 0) {
+      response += `**Main Sections:**\n`;
+      data.headings.slice(0, 10).forEach(heading => {
+        response += `${'  '.repeat(heading.level - 1)}• ${heading.text}\n`;
+      });
+      response += '\n';
+    }
+
+    if (data.links && data.links.length > 0) {
+      response += `**Links Found:** ${data.links.length} total\n`;
+      const importantLinks = data.links.slice(0, 5);
+      importantLinks.forEach(link => {
+        response += `• ${link.text} (${link.href})\n`;
+      });
+      if (data.links.length > 5) {
+        response += `... and ${data.links.length - 5} more links\n`;
+      }
+      response += '\n';
+    }
+
+    if (data.forms && data.forms.length > 0) {
+      response += `**Forms Found:** ${data.forms.length}\n`;
+    }
+
+    if (data.tables && data.tables.length > 0) {
+      response += `**Tables Found:** ${data.tables.length}\n`;
+    }
+
+    const textPreview = data.text.substring(0, 500);
+    if (textPreview) {
+      response += `**Content Preview:**\n${textPreview}${data.text.length > 500 ? '...' : ''}\n\n`;
+    }
+
+    return response;
+  }
+
+  formatSectionsResponse(sections, query) {
+    if (sections.length === 0) {
+      return `No sections found containing "${query}"`;
+    }
+
+    let response = `**Found ${sections.length} sections containing "${query}":**\n\n`;
+
+    sections.slice(0, 10).forEach((section, index) => {
+      response += `${index + 1}. **${section.text.substring(0, 100)}**\n`;
+      response += `   Element: ${section.tagName}\n\n`;
+    });
+
+    if (sections.length > 10) {
+      response += `... and ${sections.length - 10} more matches\n\n`;
+    }
+
+    response += `Click on any section number below to scroll to it, or say "scroll to section [number]"`;
+
+    // Store sections for interactive clicking
+    this.currentSearchResults = sections.slice(0, 10);
+
+    return response;
+  }
+
+  formatScrollResponse(result) {
+    if (result.success) {
+      return `✅ Scrolled to the target section and highlighted it.`;
+    } else {
+      return `❌ Failed to scroll: ${result.error || 'Unknown error'}`;
+    }
+  }
+
+  formatLinksResponse(links) {
+    if (links.length === 0) {
+      return 'No links found on this page.';
+    }
+
+    let response = `**Found ${links.length} links on this page:**\n\n`;
+
+    links.slice(0, 20).forEach((link, index) => {
+      response += `${index + 1}. ${link.text || '[No text]'}\n`;
+      response += `   ${link.href}\n\n`;
+    });
+
+    if (links.length > 20) {
+      response += `... and ${links.length - 20} more links\n\n`;
+    }
+
+    return response;
+  }
+
+  formatFormFieldsResponse(forms) {
+    if (forms.length === 0) {
+      return 'No forms found on this page.';
+    }
+
+    let response = `**Found ${forms.length} form(s) on this page:**\n\n`;
+
+    forms.forEach((form, index) => {
+      response += `${index + 1}. **Form**${form.action ? ` (action: ${form.action})` : ''}\n`;
+
+      if (form.fields && form.fields.length > 0) {
+        response += `   **Fields:**\n`;
+        form.fields.forEach(field => {
+          const required = field.required ? ' (required)' : '';
+          response += `   • ${field.name || field.id || '[unnamed]'} (${field.type})${required}\n`;
+        });
+      }
+
+      response += '\n';
+    });
+
+    return response;
   }
 
   async saveChatHistory() {

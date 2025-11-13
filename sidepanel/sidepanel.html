@@ -8,16 +8,41 @@
 </head>
 <body>
     <div class="chat-container">
+        <div class="chat-header">
+            <div class="chat-title">
+                <h3>🎓 UofC ChatBot</h3>
+                <div class="status-indicators">
+                    <div class="status-indicator" id="mcpStatus" title="MCP Web Interaction Status">
+                        <span class="status-dot" id="mcpStatusDot"></span>
+                        <span class="status-text">Web</span>
+                    </div>
+                </div>
+            </div>
+            <div class="quick-actions">
+                <button class="quick-action-btn" id="readPageBtn" title="Read this page">
+                    📖
+                </button>
+                <button class="quick-action-btn" id="getLinksBtn" title="Get all links">
+                    🔗
+                </button>
+                <button class="quick-action-btn" id="helpBtn" title="Show web commands">
+                    ❓
+                </button>
+            </div>
+        </div>
         <div class="messages-container" id="messagesContainer">
             <!-- Messages will be added here dynamically -->
         </div>
         <div class="input-container">
+            <div class="input-helper" id="inputHelper" style="display: none;">
+                <span class="helper-text"></span>
+            </div>
             <form id="chatForm" class="chat-form">
                 <input
                     type="text"
                     id="messageInput"
                     class="message-input"
-                    placeholder="Type your message..."
+                    placeholder="Type your message... (try 'read this page' or 'find sections about X')"
                     autocomplete="off"
                     required
                 >
@@ -27,6 +52,96 @@
                     </svg>
                 </button>
             </form>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="help-modal" id="helpModal">
+        <div class="help-content">
+            <div class="help-header">
+                <h4>🌐 Web Interaction Commands</h4>
+                <button class="help-close" id="helpClose">×</button>
+            </div>
+            <div class="help-body">
+                <div class="command-category">
+                    <h5>📖 Page Analysis</h5>
+                    <ul class="command-list">
+                        <li class="command-item">
+                            <div class="command-name">read this page / extract page</div>
+                            <div class="command-description">Analyze and extract structured data from the current page</div>
+                            <div class="command-examples">Examples: "read this page", "scan this page", "extract page"</div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="command-category">
+                    <h5>🔍 Search & Find</h5>
+                    <ul class="command-list">
+                        <li class="command-item">
+                            <div class="command-name">find [text] / search for [text]</div>
+                            <div class="command-description">Find sections containing specific text on the page with clickable results</div>
+                            <div class="command-examples">Examples: "find admission requirements", "search for contact info"</div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="command-category">
+                    <h5>📍 Navigation</h5>
+                    <ul class="command-list">
+                        <li class="command-item">
+                            <div class="command-name">scroll to [element/section]</div>
+                            <div class="command-description">Scroll to a specific section or element on the page</div>
+                            <div class="command-examples">Examples: "scroll to admissions", "go to contact section"</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-name">scroll to section [number]</div>
+                            <div class="command-description">Scroll to a numbered section from search results</div>
+                            <div class="command-examples">Examples: "scroll to section 1", "scroll to section 3"</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-name">navigate to [URL]</div>
+                            <div class="command-description">Navigate to a specific website</div>
+                            <div class="command-examples">Examples: "navigate to https://ucalgary.ca", "go to https://google.com"</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-name">click [element]</div>
+                            <div class="command-description">Click on interactive elements</div>
+                            <div class="command-examples">Examples: "click submit button", "press menu"</div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="command-category">
+                    <h5>🔗 Content Extraction</h5>
+                    <ul class="command-list">
+                        <li class="command-item">
+                            <div class="command-name">get all links / list links</div>
+                            <div class="command-description">Extract all links from the current page</div>
+                            <div class="command-examples">Examples: "get all links", "list links", "show links"</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-name">forms / input fields</div>
+                            <div class="command-description">Extract form fields and input elements</div>
+                            <div class="command-examples">Examples: "forms", "input fields", "show forms"</div>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="command-category">
+                    <h5>💡 Tips</h5>
+                    <ul class="command-list">
+                        <li class="command-item">
+                            <div class="command-description">Use natural language - the system will understand variations of these commands</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-description">Web interaction is enabled when the green "Web" indicator is active</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-description">Search results include clickable "📍 Scroll here" buttons for quick navigation</div>
+                        </li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 

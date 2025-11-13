@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Integration Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .test-section h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #test-results {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            font-family: monospace;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+        }
+        .status.success { background-color: #d4edda; color: #155724; }
+        .status.error { background-color: #f8d7da; color: #721c24; }
+        .status.info { background-color: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🧪 UofC ChatBot Extension - MCP Integration Test</h1>
+
+    <div class="status info">
+        <strong>Instructions:</strong> Load this page in your browser, then open the UofC ChatBot extension side panel to test the MCP web interaction features.
+    </div>
+
+    <div class="test-section">
+        <h2>📖 Page Content Test</h2>
+        <p>This section contains sample content for testing page reading functionality.</p>
+        <h3>Admission Requirements</h3>
+        <p>Students must have a high school diploma with specific course requirements including English, Mathematics, and Sciences.</p>
+        <h3>Tuition Information</h3>
+        <p>Undergraduate tuition for 2024-2025 is approximately $6,000 for domestic students and $24,000 for international students.</p>
+        <h3>Contact Information</h3>
+        <p>Email: admissions@ucalgary.ca | Phone: (403) 220-6940</p>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 Links and Navigation Test</h2>
+        <ul>
+            <li><a href="https://www.ucalgary.ca" target="_blank">University of Calgary Homepage</a></li>
+            <li><a href="https://www.ucalgary.ca/admissions" target="_blank">Admissions Office</a></li>
+            <li><a href="https://www.ucalgary.ca/future-students" target="_blank">Future Students</a></li>
+            <li><a href="#test-form">Jump to Test Form</a></li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>📝 Form Test</h2>
+        <form id="test-form" onsubmit="event.preventDefault(); alert('Form submitted!');">
+            <div>
+                <label for="name">Name:</label>
+                <input type="text" id="name" name="name" required placeholder="Enter your name">
+            </div>
+            <div style="margin: 10px 0;">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" required placeholder="Enter your email">
+            </div>
+            <div style="margin: 10px 0;">
+                <label for="program">Program of Interest:</label>
+                <select id="program" name="program">
+                    <option value="">Select a program</option>
+                    <option value="engineering">Engineering</option>
+                    <option value="business">Business</option>
+                    <option value="science">Science</option>
+                    <option value="arts">Arts</option>
+                </select>
+            </div>
+            <div style="margin: 10px 0;">
+                <label for="message">Message:</label><br>
+                <textarea id="message" name="message" rows="4" cols="50" placeholder="Enter your message here"></textarea>
+            </div>
+            <button type="submit">Submit Form</button>
+            <button type="reset">Reset Form</button>
+        </form>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Table Test</h2>
+        <table border="1" style="border-collapse: collapse; width: 100%;">
+            <thead>
+                <tr>
+                    <th>Program</th>
+                    <th>Duration</th>
+                    <th>Tuition (Domestic)</th>
+                    <th>Tuition (International)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Computer Science</td>
+                    <td>4 years</td>
+                    <td>$6,000/year</td>
+                    <td>$24,000/year</td>
+                </tr>
+                <tr>
+                    <td>Business</td>
+                    <td>4 years</td>
+                    <td>$6,500/year</td>
+                    <td>$26,000/year</td>
+                </tr>
+                <tr>
+                    <td>Engineering</td>
+                    <td>4 years</td>
+                    <td>$7,000/year</td>
+                    <td>$28,000/year</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="test-section">
+        <h2>🧪 Test Commands to Try in ChatBot</h2>
+        <p>Open the ChatBot extension side panel and try these commands:</p>
+        <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: monospace;">
+            <p>• read this page</p>
+            <p>• find sections about admission</p>
+            <p>• scroll to contact information</p>
+            <p>• get all links</p>
+            <p>• forms</p>
+            <p>• navigate to https://www.ucalgary.ca</p>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📋 Test Results</h2>
+        <div id="test-results">Test results will appear here when you interact with the extension...</div>
+    </div>
+
+    <script>
+        // Simple script to show page interactions
+        document.addEventListener('click', function(e) {
+            const results = document.getElementById('test-results');
+            const timestamp = new Date().toLocaleTimeString();
+            if (e.target.tagName === 'A') {
+                results.textContent = `[${timestamp}] Link clicked: ${e.target.textContent} (${e.target.href})`;
+            } else if (e.target.tagName === 'BUTTON') {
+                results.textContent = `[${timestamp}] Button clicked: ${e.target.textContent}`;
+            }
+        });
+
+        // Test form field interactions
+        const formFields = document.querySelectorAll('input, select, textarea');
+        formFields.forEach(field => {
+            field.addEventListener('focus', function() {
+                const results = document.getElementById('test-results');
+                const timestamp = new Date().toLocaleTimeString();
+                results.textContent = `[${timestamp}] Field focused: ${field.name || field.id} (${field.type})`;
+            });
+        });
+    </script>
+</body>
+</html>
