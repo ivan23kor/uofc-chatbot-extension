@@ -1,45 +1,45 @@
-// Side Panel JavaScript - Handles UI interactions and communication
-// This skeleton provides basic structure for side panel functionality
+// University of Calgary ChatBot Side Panel JavaScript
+// Handles chat functionality and communication with LLM
 
-class SidePanel {
+class ChatBot {
   constructor() {
+    this.messages = [];
+    this.isTyping = false;
     this.init();
   }
 
   init() {
-    console.log('Side panel loaded');
-    this.setupEventListeners();
+    console.log('UofC ChatBot loaded');
+    this.setupChatEventListeners();
     this.setupMessageHandlers();
-    this.loadInitialData();
-    this.updateStatus('Ready');
+    this.loadChatHistory();
+    this.addWelcomeMessage();
   }
 
-  setupEventListeners() {
-    // Action buttons
-    document.getElementById('extractContent')?.addEventListener('click', () => {
-      this.extractPageContent();
-    });
+  setupChatEventListeners() {
+    const chatForm = document.getElementById('chatForm');
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
 
-    document.getElementById('highlightElements')?.addEventListener('click', () => {
-      this.highlightElements();
-    });
+    if (chatForm) {
+      chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        this.handleSendMessage();
+      });
+    }
 
-    document.getElementById('clearStorage')?.addEventListener('click', () => {
-      this.clearStorage();
-    });
+    if (messageInput) {
+      messageInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.handleSendMessage();
+        }
+      });
 
-    document.getElementById('copyData')?.addEventListener('click', () => {
-      this.copyDataToClipboard();
-    });
-
-    // Settings
-    document.getElementById('enableLogging')?.addEventListener('change', (e) => {
-      this.updateSetting('enableLogging', e.target.checked);
-    });
-
-    document.getElementById('autoExtract')?.addEventListener('change', (e) => {
-      this.updateSetting('autoExtract', e.target.checked);
-    });
+      messageInput.addEventListener('input', () => {
+        this.autoResizeTextarea(messageInput);
+      });
+    }
   }
 
   setupMessageHandlers() {
@@ -53,162 +53,172 @@ class SidePanel {
     const { action, data } = request;
 
     switch (action) {
-      case 'tabUpdated':
-        this.handleTabUpdated(data);
+      case 'llmResponse':
+        this.handleLLMResponse(data);
         break;
-      case 'contentExtracted':
-        this.displayExtractedContent(data);
+      case 'chatError':
+        this.handleChatError(data);
         break;
       default:
-        console.debug('Unknown message in side panel:', action);
+        console.debug('Unknown message in chat panel:', action);
     }
   }
 
-  handleTabUpdated(tabData) {
-    document.getElementById('pageTitle').textContent = tabData.title || 'No title';
-    document.getElementById('pageUrl').textContent = tabData.url || '-';
-    document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
-
-    // Auto extract content if enabled
-    const autoExtract = document.getElementById('autoExtract');
-    if (autoExtract && autoExtract.checked) {
-      this.extractPageContent();
+  handleLLMResponse(data) {
+    this.hideTypingIndicator();
+    if (data.response) {
+      this.addMessage('assistant', data.response);
     }
   }
 
-  async loadInitialData() {
+  handleChatError(data) {
+    this.hideTypingIndicator();
+    this.addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+  }
+
+  async loadChatHistory() {
     try {
       const result = await this.sendMessage({
         action: 'getStorageData',
-        data: { keys: ['settings', 'lastPage'] }
+        data: { keys: ['chatHistory'] }
       });
 
-      if (result.success) {
-        this.loadSettings(result.data.settings || {});
+      if (result.success && result.data.chatHistory) {
+        this.messages = result.data.chatHistory;
+        this.messages.forEach(msg => this.displayMessage(msg));
+      }
+    } catch (error) {
+      console.error('Failed to load chat history:', error);
+    }
+  }
 
-        if (result.data.lastPage) {
-          document.getElementById('pageTitle').textContent = result.data.lastPage.title || 'No page loaded';
-          document.getElementById('pageUrl').textContent = result.data.lastPage.url || '-';
+  addWelcomeMessage() {
+    const welcomeMessage = {
+      role: 'assistant',
+      content: 'Welcome to UofC ChatBot! How can I help you today?',
+      timestamp: Date.now()
+    };
+    this.addMessage('assistant', welcomeMessage.content);
+  }
+
+  async handleSendMessage() {
+    const messageInput = document.getElementById('messageInput');
+    const sendButton = document.getElementById('sendButton');
+    const message = messageInput.value.trim();
+
+    if (!message || this.isTyping) return;
+
+    // Add user message
+    this.addMessage('user', message);
+
+    // Clear input
+    messageInput.value = '';
+    this.autoResizeTextarea(messageInput);
+
+    // Disable send button
+    sendButton.disabled = true;
+
+    // Show typing indicator
+    this.showTypingIndicator();
+
+    try {
+      // Send message to background script for LLM processing
+      await this.sendMessage({
+        action: 'sendToLLM',
+        data: {
+          message: message,
+          history: this.messages.slice(-10) // Send last 10 messages for context
         }
-      }
-    } catch (error) {
-      console.error('Failed to load initial data:', error);
-    }
-  }
-
-  loadSettings(settings) {
-    const enableLogging = document.getElementById('enableLogging');
-    const autoExtract = document.getElementById('autoExtract');
-
-    if (enableLogging) enableLogging.checked = settings.enableLogging || false;
-    if (autoExtract) autoExtract.checked = settings.autoExtract || false;
-  }
-
-  async extractPageContent() {
-    this.updateStatus('Extracting content...');
-
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-      const response = await chrome.tabs.sendMessage(tab.id, {
-        action: 'getPageContent'
       });
-
-      if (response && response.content) {
-        this.displayExtractedContent(response.content);
-        this.updateStatus('Content extracted');
-      } else {
-        this.showError('Failed to extract content');
-      }
     } catch (error) {
-      console.error('Error extracting content:', error);
-      this.showError('Error: ' + error.message);
+      console.error('Error sending message:', error);
+      this.hideTypingIndicator();
+      this.addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+      sendButton.disabled = false;
     }
   }
 
-  displayExtractedContent(content) {
-    const output = document.getElementById('dataOutput');
-    if (output) {
-      output.value = JSON.stringify(content, null, 2);
-    }
+  addMessage(role, content) {
+    const message = {
+      role: role,
+      content: content,
+      timestamp: Date.now()
+    };
 
-    // Store in local storage
-    this.sendMessage({
-      action: 'setStorageData',
-      data: { data: { lastExtractedContent: content } }
-    });
+    this.messages.push(message);
+    this.displayMessage(message);
+    this.saveChatHistory();
   }
 
-  async highlightElements() {
-    this.updateStatus('Highlighting elements...');
+  displayMessage(message) {
+    const messagesContainer = document.getElementById('messagesContainer');
+    if (!messagesContainer) return;
 
+    const messageElement = document.createElement('div');
+    messageElement.className = `message ${message.role}`;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'message-avatar';
+    avatar.textContent = message.role === 'user' ? 'U' : 'C';
+
+    const content = document.createElement('div');
+    content.className = 'message-content';
+    content.textContent = message.content;
+
+    messageElement.appendChild(avatar);
+    messageElement.appendChild(content);
+    messagesContainer.appendChild(messageElement);
+
+    // Scroll to bottom
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  showTypingIndicator() {
+    this.isTyping = true;
+    const messagesContainer = document.getElementById('messagesContainer');
+    if (!messagesContainer) return;
+
+    const typingElement = document.createElement('div');
+    typingElement.className = 'message assistant typing-indicator';
+    typingElement.id = 'typingIndicator';
+
+    for (let i = 0; i < 3; i++) {
+      const dot = document.createElement('div');
+      dot.className = 'typing-dot';
+      typingElement.appendChild(dot);
+    }
+
+    messagesContainer.appendChild(typingElement);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+  }
+
+  hideTypingIndicator() {
+    this.isTyping = false;
+    const typingIndicator = document.getElementById('typingIndicator');
+    const sendButton = document.getElementById('sendButton');
+
+    if (typingIndicator) {
+      typingIndicator.remove();
+    }
+
+    if (sendButton) {
+      sendButton.disabled = false;
+    }
+  }
+
+  autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+  }
+
+  async saveChatHistory() {
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-      // Example: highlight main content areas
-      const selectors = ['main', 'article', '[role="main"]', '.content', '#content'];
-
-      for (const selector of selectors) {
-        await chrome.tabs.sendMessage(tab.id, {
-          action: 'highlightElement',
-          selector: selector
-        });
-      }
-
-      this.updateStatus('Elements highlighted');
-    } catch (error) {
-      console.error('Error highlighting elements:', error);
-      this.showError('Error: ' + error.message);
-    }
-  }
-
-  async clearStorage() {
-    if (confirm('Are you sure you want to clear all extension data?')) {
-      try {
-        await chrome.storage.local.clear();
-        document.getElementById('dataOutput').value = '';
-        this.updateStatus('Storage cleared');
-
-        // Reload settings
-        this.loadSettings({});
-      } catch (error) {
-        console.error('Error clearing storage:', error);
-        this.showError('Error: ' + error.message);
-      }
-    }
-  }
-
-  copyDataToClipboard() {
-    const output = document.getElementById('dataOutput');
-    if (output && output.value) {
-      navigator.clipboard.writeText(output.value).then(() => {
-        this.updateStatus('Copied to clipboard');
-        setTimeout(() => this.updateStatus('Ready'), 2000);
-      }).catch(error => {
-        console.error('Failed to copy:', error);
-        this.showError('Failed to copy to clipboard');
-      });
-    }
-  }
-
-  async updateSetting(key, value) {
-    try {
-      const result = await this.sendMessage({
-        action: 'getStorageData',
-        data: { keys: ['settings'] }
-      });
-
-      const settings = result.success ? result.data.settings || {} : {};
-      settings[key] = value;
-
       await this.sendMessage({
         action: 'setStorageData',
-        data: { data: { settings } }
+        data: { data: { chatHistory: this.messages } }
       });
-
-      console.log('Setting updated:', key, value);
     } catch (error) {
-      console.error('Failed to update setting:', error);
+      console.error('Failed to save chat history:', error);
     }
   }
 
@@ -223,32 +233,9 @@ class SidePanel {
       });
     });
   }
-
-  updateStatus(text, type = 'success') {
-    const statusIndicator = document.getElementById('statusIndicator');
-    const statusDot = statusIndicator?.querySelector('.status-dot');
-    const statusText = statusIndicator?.querySelector('.status-text');
-
-    if (statusText) statusText.textContent = text;
-
-    if (statusDot) {
-      statusDot.style.backgroundColor = type === 'error' ? '#ea4335' : '#4caf50';
-    }
-
-    // Log if enabled
-    const enableLogging = document.getElementById('enableLogging');
-    if (enableLogging && enableLogging.checked) {
-      console.log(`[${type.toUpperCase()}] ${text}`);
-    }
-  }
-
-  showError(message) {
-    this.updateStatus(message, 'error');
-    setTimeout(() => this.updateStatus('Ready'), 3000);
-  }
 }
 
-// Initialize side panel when DOM is loaded
+// Initialize chatbot when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-  new SidePanel();
+  new ChatBot();
 });

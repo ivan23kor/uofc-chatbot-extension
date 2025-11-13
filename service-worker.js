@@ -25,9 +25,14 @@ class ServiceWorker {
     });
 
     // Extension action click
-    chrome.action.onClicked.addListener((tab) => {
+    chrome.action.onClicked.addListener(async (tab) => {
       console.log('Extension action clicked');
-      this.openSidePanel();
+      try {
+        await chrome.sidePanel.open({ tabId: tab.id });
+        console.log('Side panel opened');
+      } catch (error) {
+        console.error('Failed to open side panel:', error);
+      }
     });
 
     // Tab updates
