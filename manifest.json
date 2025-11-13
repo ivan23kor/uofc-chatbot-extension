@@ -3,6 +3,12 @@
   "name": "UofC ChatBot Extension",
   "version": "1.0.0",
   "description": "UofC ChatBot Extension for academic assistance",
+  "icons": {
+    "128": "icons/icon-128.png",
+    "48": "icons/icon-48.png",
+    "32": "icons/icon-32.png",
+    "16": "icons/icon-16.png"
+  },
 
   "permissions": [
     "activeTab",
@@ -32,6 +38,9 @@
   },
 
   "action": {
-    "default_title": "Open UofC ChatBot"
+    "default_title": "Open UofC ChatBot",
+    "default_icon": {
+      "48": "icons/icon-48.png"
+    }
   }
 }

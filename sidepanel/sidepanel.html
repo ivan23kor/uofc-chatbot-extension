@@ -29,6 +29,48 @@
             </form>
         </div>
     </div>
+
+    <!-- API Key Modal -->
+    <div class="modal" id="apiKeyModal">
+        <div class="modal-overlay" id="modalOverlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔑 API Key Required</h3>
+                <button class="modal-close" id="modalClose">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="setup-description">
+                    <p>To use the UofC ChatBot, you need to provide your Groq API key for the Llama 3.3 model.</p>
+                    <div class="api-key-steps">
+                        <h4>How to get your API key:</h4>
+                        <ol>
+                            <li>Visit <a href="https://console.groq.com/" target="_blank">console.groq.com</a></li>
+                            <li>Sign up or log in to your account</li>
+                            <li>Navigate to API Keys section</li>
+                            <li>Create a new API key</li>
+                            <li>Copy and paste it below</li>
+                        </ol>
+                    </div>
+                </div>
+                <div class="api-key-input-group">
+                    <label for="apiKeyInput">Groq API Key:</label>
+                    <input
+                        type="password"
+                        id="apiKeyInput"
+                        class="api-key-input"
+                        placeholder="gsk_..."
+                        autocomplete="off"
+                    >
+                    <div class="input-validation" id="inputValidation"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="modal-btn modal-btn-secondary" id="modalCancel">Cancel</button>
+                <button class="modal-btn modal-btn-primary" id="modalSave">Save & Continue</button>
+            </div>
+        </div>
+    </div>
+
     <script src="sidepanel.js"></script>
 </body>
 </html>
