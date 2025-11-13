@@ -1,0 +1,259 @@
+/* Extension Side Panel Styles */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    background-color: #f8f9fa;
+    height: 100vh;
+    overflow-x: hidden;
+}
+
+.sidepanel-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    max-width: 400px;
+    margin: 0 auto;
+    background-color: white;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+.sidepanel-header {
+    background-color: #4285f4;
+    color: white;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+}
+
+.sidepanel-header h1 {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #4caf50;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Main Content */
+.sidepanel-content {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+}
+
+section {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #eee;
+}
+
+section:last-child {
+    border-bottom: none;
+}
+
+h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #202124;
+}
+
+/* Info Section */
+.info-grid {
+    display: grid;
+    gap: 8px;
+}
+
+.info-item {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.info-item label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #5f6368;
+    text-transform: uppercase;
+}
+
+.info-item span {
+    font-size: 13px;
+    color: #202124;
+    word-break: break-word;
+}
+
+.url-text {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    color: #1a73e8;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-primary {
+    background-color: #4285f4;
+    color: white;
+}
+
+.btn-secondary {
+    background-color: #f8f9fa;
+    color: #202124;
+    border: 1px solid #dadce0;
+}
+
+.btn-danger {
+    background-color: #ea4335;
+    color: white;
+}
+
+.btn-small {
+    padding: 4px 8px;
+    font-size: 11px;
+    background-color: #f8f9fa;
+    border: 1px solid #dadce0;
+    color: #202124;
+}
+
+/* Data Section */
+.data-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#dataOutput {
+    width: 100%;
+    min-height: 120px;
+    padding: 8px;
+    border: 1px solid #dadce0;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 11px;
+    resize: vertical;
+    background-color: #f8f9fa;
+}
+
+/* Settings Section */
+.settings-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.setting-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    padding: 4px 0;
+}
+
+.setting-item input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.setting-item span {
+    font-size: 13px;
+    color: #202124;
+    user-select: none;
+}
+
+/* Footer */
+.sidepanel-footer {
+    background-color: #f8f9fa;
+    padding: 12px 16px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+}
+
+.sidepanel-footer p {
+    font-size: 11px;
+    color: #5f6368;
+    margin: 0;
+}
+
+/* Loading State */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading .status-dot {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-height: 600px) {
+    .sidepanel-content {
+        padding: 12px;
+    }
+
+    section {
+        margin-bottom: 16px;
+    }
+
+    h2 {
+        font-size: 14px;
+    }
+}

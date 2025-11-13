@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UofC ChatBot Extension</title>
+    <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+    <div class="sidepanel-container">
+        <header class="sidepanel-header">
+            <h1>UofC ChatBot</h1>
+            <div class="status-indicator" id="statusIndicator">
+                <span class="status-dot"></span>
+                <span class="status-text">Ready</span>
+            </div>
+        </header>
+
+        <main class="sidepanel-content">
+            <section class="info-section">
+                <h2>Page Information</h2>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <label>Title:</label>
+                        <span id="pageTitle">No page loaded</span>
+                    </div>
+                    <div class="info-item">
+                        <label>URL:</label>
+                        <span id="pageUrl" class="url-text">-</span>
+                    </div>
+                    <div class="info-item">
+                        <label>Last Updated:</label>
+                        <span id="lastUpdated">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="action-section">
+                <h2>Actions</h2>
+                <div class="action-buttons">
+                    <button id="extractContent" class="btn btn-primary">
+                        Extract Page Content
+                    </button>
+                    <button id="highlightElements" class="btn btn-secondary">
+                        Highlight Elements
+                    </button>
+                    <button id="clearStorage" class="btn btn-danger">
+                        Clear Storage
+                    </button>
+                </div>
+            </section>
+
+            <section class="data-section">
+                <h2>Data</h2>
+                <div class="data-container">
+                    <textarea id="dataOutput" readonly placeholder="Output will appear here..."></textarea>
+                    <button id="copyData" class="btn btn-small">Copy</button>
+                </div>
+            </section>
+
+            <section class="settings-section">
+                <h2>Settings</h2>
+                <div class="settings-grid">
+                    <label class="setting-item">
+                        <input type="checkbox" id="enableLogging">
+                        <span>Enable Logging</span>
+                    </label>
+                    <label class="setting-item">
+                        <input type="checkbox" id="autoExtract">
+                        <span>Auto Extract Content</span>
+                    </label>
+                </div>
+            </section>
+        </main>
+
+        <footer class="sidepanel-footer">
+            <p>UofC ChatBot Extension v1.0.0</p>
+        </footer>
+    </div>
+
+    <script src="sidepanel.js"></script>
+</body>
+</html>
