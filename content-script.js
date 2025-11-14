@@ -104,7 +104,7 @@ class ContentScript {
   }
 
   extractStructuredData(params = {}) {
-    const { includeImages = false, includeLinks = true, includeHeadings = true } = params;
+    const { includeImages = false, includeLinks = true, includeHeadings = true, enableSemanticProcessing = true } = params;
 
     const data = {
       title: document.title,
@@ -115,7 +115,8 @@ class ContentScript {
       images: includeImages ? this.extractImages() : [],
       text: this.getMainTextContent(),
       forms: this.extractForms(),
-      tables: this.extractTables()
+      tables: this.extractTables(),
+      semanticSections: enableSemanticProcessing ? this.extractSemanticSections() : []
     };
 
     return data;
@@ -442,6 +443,207 @@ class ContentScript {
       selector: this.getElementSelector(element),
       rect: this.getElementRect(element)
     };
+  }
+
+  extractSemanticSections() {
+    const sections = [];
+    const contentBlocks = this.identifyContentBlocks();
+
+    contentBlocks.forEach((block, index) => {
+      const section = this.createSemanticSection(block, index);
+      if (section.content && section.content.length > 50) {
+        sections.push(section);
+      }
+    });
+
+    return sections;
+  }
+
+  identifyContentBlocks() {
+    const blocks = [];
+    const processedElements = new Set();
+
+    // Find major content sections
+    const headings = document.querySelectorAll('h1, h2, h3, h4, h5, h6');
+    headings.forEach(heading => {
+      if (processedElements.has(heading)) return;
+
+      const section = this.extractSectionFromHeading(heading);
+      if (section) {
+        blocks.push(section);
+        section.elements.forEach(el => processedElements.add(el));
+      }
+    });
+
+    // Find semantic content areas without headings
+    const semanticSelectors = [
+      'article', 'section', '.content', '.post', '.entry',
+      '[role="article"]', '[role="main"]', '.description',
+      '.info', '.details', '.summary'
+    ];
+
+    semanticSelectors.forEach(selector => {
+      document.querySelectorAll(selector).forEach(element => {
+        if (processedElements.has(element)) return;
+
+        const block = this.extractContentBlock(element);
+        if (block && block.content.length > 100) {
+          blocks.push(block);
+          block.elements.forEach(el => processedElements.add(el));
+        }
+      });
+    });
+
+    // Add remaining meaningful text blocks
+    const textBlocks = this.findTextBlocks(processedElements);
+    blocks.push(...textBlocks);
+
+    return blocks;
+  }
+
+  extractSectionFromHeading(heading) {
+    const headingLevel = parseInt(heading.tagName.substring(1));
+    let content = '';
+    let elements = [heading];
+    let nextElement = heading.nextElementSibling;
+
+    while (nextElement) {
+      if (/^H[1-6]$/.test(nextElement.tagName)) {
+        const nextLevel = parseInt(nextElement.tagName.substring(1));
+        if (nextLevel <= headingLevel) break;
+      }
+
+      content += nextElement.innerText + '\n';
+      elements.push(nextElement);
+      nextElement = nextElement.nextElementSibling;
+    }
+
+    return {
+      heading: heading.innerText.trim(),
+      content: content.trim(),
+      elements: elements,
+      type: 'heading-section',
+      level: headingLevel,
+      selector: this.getElementSelector(heading)
+    };
+  }
+
+  extractContentBlock(element) {
+    const text = element.innerText.trim();
+    const links = Array.from(element.querySelectorAll('a')).map(link => ({
+      text: link.innerText.trim(),
+      href: link.href
+    }));
+
+    return {
+      heading: this.getBlockTitle(element),
+      content: text,
+      elements: [element],
+      type: 'semantic-block',
+      links: links,
+      selector: this.getElementSelector(element)
+    };
+  }
+
+  getBlockTitle(element) {
+    // Try to find a meaningful title for the content block
+    const titleSelectors = [
+      'h1, h2, h3, h4, h5, h6',
+      '.title', '.headline', '.subject',
+      '[aria-label]', 'title'
+    ];
+
+    for (const selector of titleSelectors) {
+      const titleElement = element.querySelector(selector);
+      if (titleElement && titleElement.innerText.trim()) {
+        return titleElement.innerText.trim();
+      }
+    }
+
+    // Use element's own attributes
+    if (element.getAttribute('aria-label')) {
+      return element.getAttribute('aria-label');
+    }
+    if (element.getAttribute('title')) {
+      return element.getAttribute('title');
+    }
+    if (element.id) {
+      return element.id.replace(/[-_]/g, ' ');
+    }
+
+    // Extract first sentence as title
+    const text = element.innerText.trim();
+    const firstSentence = text.match(/^[^.!?]+[.!?]/);
+    if (firstSentence) {
+      return firstSentence[0].trim();
+    }
+
+    return null;
+  }
+
+  findTextBlocks(processedElements) {
+    const blocks = [];
+    const paragraphs = document.querySelectorAll('p, .paragraph, .text');
+
+    paragraphs.forEach(p => {
+      if (processedElements.has(p)) return;
+
+      const text = p.innerText.trim();
+      if (text.length > 100 && text.length < 1000) {
+        const words = text.split(/\s+/);
+        if (words.length > 20) {
+          blocks.push({
+            heading: null,
+            content: text,
+            elements: [p],
+            type: 'text-block',
+            selector: this.getElementSelector(p)
+          });
+        }
+      }
+    });
+
+    return blocks;
+  }
+
+  createSemanticSection(block, index) {
+    const sectionId = `semantic-section-${index}`;
+    const selector = block.selector || `#${sectionId}`;
+
+    // Add unique ID to the main element for easy targeting
+    if (block.elements[0] && !block.elements[0].id) {
+      block.elements[0].id = sectionId;
+    }
+
+    return {
+      id: sectionId,
+      heading: block.heading,
+      text: block.content,
+      selector: selector,
+      type: block.type,
+      links: block.links || [],
+      rect: this.getElementRect(block.elements[0]),
+      level: block.level || 0,
+      content: this.extractContentForEmbedding(block)
+    };
+  }
+
+  extractContentForEmbedding(block) {
+    const parts = [];
+
+    if (block.heading) {
+      parts.push(block.heading);
+    }
+
+    if (block.content) {
+      parts.push(block.content);
+    }
+
+    if (block.links && block.links.length > 0) {
+      parts.push(...block.links.map(link => link.text));
+    }
+
+    return parts.join(' ').replace(/\s+/g, ' ').trim();
   }
 
   sendMessage(message) {

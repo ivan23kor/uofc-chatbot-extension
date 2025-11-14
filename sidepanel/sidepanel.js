@@ -174,6 +174,8 @@ class ChatBot {
     this.apiKeyModal = new APIKeyModal();
     this.initialized = false;
     this.mcpEnabled = false;
+    this.semanticSearch = null;
+    this.semanticSections = [];
   }
 
   async init() {
@@ -197,6 +199,7 @@ class ChatBot {
       this.setupMessageHandlers();
       this.loadChatHistory();
       this.checkMCPStatus();
+      this.initializeSemanticSearch();
       this.setupQuickActions();
       this.addWelcomeMessage();
       this.initialized = true;
@@ -359,9 +362,11 @@ class ChatBot {
   addWelcomeMessage() {
     let welcomeText = 'Welcome to UofC ChatBot! I\'m powered by Llama 3.3 and ready to help.';
     if (this.mcpEnabled) {
-      welcomeText += ' I can also help you interact with web pages - try commands like "read this page", "find sections about X", "scroll to heading", or "get all links".';
+      welcomeText += ' I can help you interact with web pages with both traditional and semantic search:\n\n';
+      welcomeText += '**Traditional commands:** "read this page", "find sections about X", "scroll to heading", "get all links"\n\n';
+      welcomeText += '**Semantic commands:** "semantic search for tuition", "find content like costs and fees", "smart scroll to admission requirements"';
     }
-    welcomeText += ' What can I assist you with today?';
+    welcomeText += '\n\nWhat can I assist you with today?';
 
     const welcomeMessage = {
       role: 'assistant',
@@ -507,17 +512,29 @@ class ChatBot {
   }
 
   async scrollToSearchResult(index) {
-    if (!this.currentSearchResults || !this.currentSearchResults[index]) {
-      return '❌ Section not found. Please search again.';
+    // Check regular search results first
+    if (this.currentSearchResults && this.currentSearchResults[index]) {
+      const section = this.currentSearchResults[index];
+      try {
+        const result = await this.executeMCPAction('scrollToSection', { selector: section.selector });
+        return `✅ Scrolled to: **${section.text.substring(0, 50)}**`;
+      } catch (error) {
+        return `❌ Failed to scroll: ${error.message}`;
+      }
     }
 
-    const section = this.currentSearchResults[index];
-    try {
-      const result = await this.executeMCPAction('scrollToSection', { selector: section.selector });
-      return `✅ Scrolled to: **${section.text.substring(0, 50)}**`;
-    } catch (error) {
-      return `❌ Failed to scroll: ${error.message}`;
+    // Check semantic search results
+    if (this.currentSemanticResults && this.currentSemanticResults[index]) {
+      const section = this.currentSemanticResults[index];
+      try {
+        const result = await this.executeMCPAction('scrollToSection', { selector: section.selector });
+        return `🎯 **Scrolled to semantically relevant section:**\n\n**${section.heading || 'Untitled Section'}**\nRelevance: ${section.relevanceLabel} (${Math.round(section.relevanceScore * 100)}%)`;
+      } catch (error) {
+        return `❌ Failed to scroll: ${error.message}`;
+      }
     }
+
+    return '❌ Section not found. Please search again.';
   }
 
   showTypingIndicator() {
@@ -558,6 +575,22 @@ class ChatBot {
     textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
   }
 
+  async initializeSemanticSearch() {
+    try {
+      if (typeof SemanticSearch !== 'undefined') {
+        this.semanticSearch = new SemanticSearch();
+        await this.semanticSearch.initialize(this.groqApiKey);
+        console.log('Semantic search initialized successfully');
+      } else {
+        console.error('SemanticSearch class not found - semantic search will be disabled');
+        this.semanticSearch = null;
+      }
+    } catch (error) {
+      console.error('Failed to initialize semantic search:', error);
+      this.semanticSearch = null;
+    }
+  }
+
   parseWebCommand(message) {
     const commands = [
       {
@@ -566,10 +599,28 @@ class ChatBot {
         description: 'Extract structured data from the current page'
       },
       {
+        pattern: /^semantic\s+(search|find)\s+(for\s+)?(.+)$/i,
+        action: 'semanticSearch',
+        description: 'Semantic search for content similar to your query',
+        extractParam: 2
+      },
+      {
+        pattern: /^find\s+content\s+(like|about|similar\s+to)\s+(.+)$/i,
+        action: 'semanticSearch',
+        description: 'Find content semantically similar to your description',
+        extractParam: 2
+      },
+      {
         pattern: /^(find|search)(\s+for)?\s+(.+)$/i,
         action: 'findSections',
         description: 'Find sections containing specific text',
         extractParam: 2
+      },
+      {
+        pattern: /^smart\s+scroll\s+to\s+(.+)$/i,
+        action: 'semanticScroll',
+        description: 'Scroll to the most semantically relevant section',
+        extractParam: 1
       },
       {
         pattern: /^(scroll|go)\s+to\s+(.+)$/i,
@@ -634,8 +685,17 @@ class ChatBot {
 
       switch (command.action) {
         case 'extractStructuredData':
-          result = await this.executeMCPAction('extractStructuredData', {});
+          result = await this.executeMCPAction('extractStructuredData', { enableSemanticProcessing: true });
+          if (result.semanticSections) {
+            await this.processSemanticSections(result.semanticSections);
+          }
           return this.formatStructuredDataResponse(result);
+
+        case 'semanticSearch':
+          return await this.handleSemanticSearch(command.params.query);
+
+        case 'semanticScroll':
+          return await this.handleSemanticScroll(command.params.query);
 
         case 'findSections':
           result = await this.executeMCPAction('findSections', { query: command.params.query });
@@ -762,10 +822,10 @@ class ChatBot {
   }
 
   formatScrollResponse(result) {
-    if (result.success) {
+    if (result && result.success) {
       return `✅ Scrolled to the target section and highlighted it.`;
     } else {
-      return `❌ Failed to scroll: ${result.error || 'Unknown error'}`;
+      return `❌ Failed to scroll: ${result?.error || 'Unknown error'}`;
     }
   }
 
@@ -818,6 +878,103 @@ class ChatBot {
     } catch (error) {
       console.error('Failed to save chat history:', error);
     }
+  }
+
+  async processSemanticSections(semanticSections) {
+    if (!this.semanticSearch || !semanticSections) return;
+
+    try {
+      this.semanticSections = await this.semanticSearch.processContentSections(semanticSections);
+      console.log(`Processed ${this.semanticSections.length} semantic sections`);
+    } catch (error) {
+      console.error('Failed to process semantic sections:', error);
+      this.semanticSections = [];
+    }
+  }
+
+  async handleSemanticSearch(query) {
+    if (!this.semanticSearch) {
+      return 'Semantic search is not available. Please try reading the page first to enable semantic processing.';
+    }
+
+    if (this.semanticSections.length === 0) {
+      const result = await this.executeMCPAction('extractStructuredData', { enableSemanticProcessing: true });
+      if (result.semanticSections) {
+        await this.processSemanticSections(result.semanticSections);
+      } else {
+        return 'No semantic content found on this page. Please try reading the page first.';
+      }
+    }
+
+    try {
+      const results = await this.semanticSearch.findMostRelevantSections(query, this.semanticSections);
+
+      if (results.length === 0) {
+        return `No semantically relevant content found for "${query}". Try different keywords or use the regular "find" command.`;
+      }
+
+      let response = `**Found ${results.length} semantically relevant sections for "${query}":**\n\n`;
+
+      results.forEach((section, index) => {
+        const relevanceEmoji = this.getRelevanceEmoji(section.relevanceScore);
+        response += `${index + 1}. ${relevanceEmoji} **${section.heading || 'Untitled Section'}**\n`;
+        response += `   Relevance: ${section.relevanceLabel} (${Math.round(section.relevanceScore * 100)}%)\n`;
+        response += `   Preview: ${section.text.substring(0, 150)}${section.text.length > 150 ? '...' : ''}\n\n`;
+      });
+
+      response += `📍 **Scroll to section [1-${results.length}]** to navigate to any result`;
+
+      // Store semantic results for interactive scrolling
+      this.currentSemanticResults = results;
+
+      return response;
+    } catch (error) {
+      console.error('Semantic search failed:', error);
+      return `Semantic search failed: ${error.message}. Please try again or use regular search.`;
+    }
+  }
+
+  async handleSemanticScroll(query) {
+    if (!this.semanticSearch) {
+      return 'Semantic scroll is not available. Please try reading the page first to enable semantic processing.';
+    }
+
+    if (this.semanticSections.length === 0) {
+      const result = await this.executeMCPAction('extractStructuredData', { enableSemanticProcessing: true });
+      if (result.semanticSections) {
+        await this.processSemanticSections(result.semanticSections);
+      } else {
+        return 'No semantic content found on this page. Please try reading the page first.';
+      }
+    }
+
+    try {
+      const results = await this.semanticSearch.findMostRelevantSections(query, this.semanticSections);
+
+      if (results.length === 0) {
+        return `No semantically relevant content found for "${query}". Try different keywords.`;
+      }
+
+      const bestMatch = results[0];
+      const scrollResult = await this.executeMCPAction('scrollToSection', { selector: bestMatch.selector });
+
+      if (scrollResult && scrollResult.success) {
+        return `🎯 **Smart scrolled to the most relevant section:**\n\n${bestMatch.heading || 'Untitled Section'}\nRelevance: ${bestMatch.relevanceLabel} (${Math.round(bestMatch.relevanceScore * 100)}%)`;
+      } else {
+        return `Failed to scroll to the semantic section: ${scrollResult?.error || 'Unknown error'}`;
+      }
+    } catch (error) {
+      console.error('Semantic scroll failed:', error);
+      return `Semantic scroll failed: ${error.message}. Please try again.`;
+    }
+  }
+
+  getRelevanceEmoji(score) {
+    if (score > 0.8) return '🎯';
+    if (score > 0.6) return '✅';
+    if (score > 0.4) return '👍';
+    if (score > 0.2) return '🤔';
+    return '❓';
   }
 }
 

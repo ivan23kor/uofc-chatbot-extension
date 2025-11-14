@@ -42,7 +42,7 @@
                     type="text"
                     id="messageInput"
                     class="message-input"
-                    placeholder="Type your message... (try 'read this page' or 'find sections about X')"
+                    placeholder="Type your message... (try 'semantic search for tuition' or 'smart scroll to admission')"
                     autocomplete="off"
                     required
                 >
@@ -82,6 +82,16 @@
                             <div class="command-description">Find sections containing specific text on the page with clickable results</div>
                             <div class="command-examples">Examples: "find admission requirements", "search for contact info"</div>
                         </li>
+                        <li class="command-item">
+                            <div class="command-name">semantic search for [concept]</div>
+                            <div class="command-description">AI-powered semantic search that understands context and meaning</div>
+                            <div class="command-examples">Examples: "semantic search for tuition", "semantic find costs", "semantic search deadlines"</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-name">find content like [description]</div>
+                            <div class="command-description">Find content semantically similar to your description</div>
+                            <div class="command-examples">Examples: "find content like admission requirements", "find content similar to campus housing"</div>
+                        </li>
                     </ul>
                 </div>
 
@@ -92,6 +102,11 @@
                             <div class="command-name">scroll to [element/section]</div>
                             <div class="command-description">Scroll to a specific section or element on the page</div>
                             <div class="command-examples">Examples: "scroll to admissions", "go to contact section"</div>
+                        </li>
+                        <li class="command-item">
+                            <div class="command-name">smart scroll to [topic]</div>
+                            <div class="command-description">Intelligently scroll to the most semantically relevant section</div>
+                            <div class="command-examples">Examples: "smart scroll to tuition info", "smart scroll to admission requirements"</div>
                         </li>
                         <li class="command-item">
                             <div class="command-name">scroll to section [number]</div>
@@ -186,6 +201,7 @@
         </div>
     </div>
 
+    <script src="semantic-search.js"></script>
     <script src="sidepanel.js"></script>
 </body>
 </html>
