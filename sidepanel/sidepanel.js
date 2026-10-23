@@ -477,9 +477,8 @@ class ChatBot {
     const content = document.createElement('div');
     content.className = 'message-content';
 
-    // Parse and render content with interactive elements
     if (message.content.includes('Click on any section number below')) {
-      content.innerHTML = this.parseInteractiveMessage(message.content);
+      content.appendChild(this.parseInteractiveMessage(message.content));
     } else {
       content.textContent = message.content;
     }
@@ -493,22 +492,34 @@ class ChatBot {
   }
 
   parseInteractiveMessage(content) {
-    // Parse markdown and add interactive elements
-    let html = content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/^\d+\.\s+\*\*(.*?)\*\*/g, function(match, text) {
-        const sectionNum = match.match(/^\d+/)[0];
-        return `<div class="search-result-item" data-section="${sectionNum}">
-          <strong>${sectionNum}. ${text}</strong>
-          <button class="scroll-to-btn" onclick="window.chatBot.scrollToSearchResult(${parseInt(sectionNum) - 1})">
-            📍 Scroll here
-          </button>
-        </div>`;
-      })
-      .replace(/^(\d+\.\s+)/gm, '<div class="search-result-item" data-section="$1">$1</div>');
-
-    return '<p>' + html + '</p>';
+    const fragment = document.createDocumentFragment();
+    for (const line of content.split('\n')) {
+      const section = line.match(/^(\d+)\.\s+\*\*(.*?)\*\*(.*)$/);
+      const row = document.createElement(section ? 'div' : 'p');
+      if (section) {
+        row.className = 'search-result-item';
+        row.dataset.section = section[1];
+      }
+      for (const part of line.split(/(\*\*.*?\*\*)/g)) {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          const strong = document.createElement('strong');
+          strong.textContent = part.slice(2, -2);
+          row.appendChild(strong);
+        } else {
+          row.appendChild(document.createTextNode(part));
+        }
+      }
+      if (section) {
+        const button = document.createElement('button');
+        button.className = 'scroll-to-btn';
+        button.type = 'button';
+        button.textContent = '📍 Scroll here';
+        button.addEventListener('click', () => this.scrollToSearchResult(Number(section[1]) - 1));
+        row.appendChild(button);
+      }
+      fragment.appendChild(row);
+    }
+    return fragment;
   }
 
   async scrollToSearchResult(index) {
